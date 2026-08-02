@@ -1,0 +1,38 @@
+{
+  "window": {
+    "x": 995,
+    "y": -1,
+    "opacity": 0.8,
+    "always_on_top": true,
+    "remember_position": true
+  },
+  "appearance": {
+    "background": "#2b2723",
+    "text_color": "#dddddd",
+    "today_color": "#67d46f",
+    "future_color": "#e4c84f",
+    "past_color": "#e1665f",
+    "epoch_font_family": "Segoe UI",
+    "epoch_font_size": 24,
+    "clock_font_family": "Segoe UI",
+    "clock_font_size": 15,
+    "date_font_size": 10,
+    "offset_font_size": 24,
+    "padding_x": 14,
+    "padding_y": 8,
+    "center_width": 210
+  },
+  "display": {
+    "layout": "horizontal",
+    "epoch_format": "GMT {doy:03d}",
+    "clock_format": "%H:%M:%S UTC",
+    "date_format": "%A %d/%m/%Y",
+    "show_seconds": true,
+    "offset_zero_text": "0"
+  },
+  "controls": {
+    "mouse_wheel_days": 1,
+    "shift_arrow_days": 7,
+    "copy_on_epoch_click": true
+  }
+}
