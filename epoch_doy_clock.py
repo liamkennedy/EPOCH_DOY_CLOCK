@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import socket
+import ctypes
 import tkinter as tk
 from tkinter import colorchooser, messagebox
 from datetime import datetime, timezone, timedelta
@@ -12,6 +13,8 @@ from pathlib import Path
 APP_NAME = "Epoch DOY Clock"
 SHARED_CONFIG_FILENAME = "epoch_doy_clock.json"
 DEVICE_CONFIG_PREFIX = "epoch_doy_clock."
+SINGLE_INSTANCE_MUTEX = "Local\\EpochDOYClock_LiamKennedy"
+WINDOW_TITLE = "Epoch DOY Clock"
 
 DEFAULT_CONFIG = {
     "window": {
@@ -53,6 +56,81 @@ DEFAULT_CONFIG = {
 }
 
 
+
+def acquire_single_instance():
+    """Return mutex handle if this is the first instance, otherwise None."""
+    if os.name != "nt":
+        return True
+
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.CreateMutexW(None, False, SINGLE_INSTANCE_MUTEX)
+    if not handle:
+        return True
+
+    ERROR_ALREADY_EXISTS = 183
+    if kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+        try:
+            kernel32.CloseHandle(handle)
+        except Exception:
+            pass
+        return None
+    return handle
+
+
+def activate_existing_instance():
+    """Best-effort request to bring the existing borderless Tk window forward."""
+    if os.name != "nt":
+        return
+
+    user32 = ctypes.windll.user32
+
+    # Tk may not expose the exact caption reliably for overrideredirect windows,
+    # so enumerate visible top-level windows and look for the known app title.
+    matches = []
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    def enum_proc(hwnd, lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buf, length + 1)
+        title = buf.value
+
+        if title == WINDOW_TITLE:
+            matches.append(hwnd)
+            return False
+        return True
+
+    try:
+        user32.EnumWindows(enum_proc, 0)
+        if not matches:
+            return
+
+        hwnd = matches[0]
+        SW_RESTORE = 9
+        user32.ShowWindow(hwnd, SW_RESTORE)
+
+        # Borderless always-on-top windows can be stubborn about focus.
+        # Toggle topmost briefly and request foreground activation.
+        HWND_TOPMOST = -1
+        HWND_NOTOPMOST = -2
+        SWP_NOMOVE = 0x0002
+        SWP_NOSIZE = 0x0001
+        SWP_SHOWWINDOW = 0x0040
+
+        user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
+        user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
+        user32.SetForegroundWindow(hwnd)
+    except Exception:
+        pass
+
 def deep_merge(base, override):
     result = dict(base)
     for key, value in override.items():
@@ -72,7 +150,7 @@ def app_directory():
 class EpochClockApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title(APP_NAME)
+        self.root.title(WINDOW_TITLE)
         self.root.overrideredirect(True)
 
         self.shared_config_path = app_directory() / SHARED_CONFIG_FILENAME
@@ -684,4 +762,21 @@ class EpochClockApp:
 
 
 if __name__ == "__main__":
-    EpochClockApp().run()
+    instance_handle = acquire_single_instance()
+
+    if instance_handle is None:
+        activate_existing_instance()
+        sys.exit(0)
+
+    try:
+        EpochClockApp().run()
+    finally:
+        if os.name == "nt" and instance_handle not in (None, True):
+            try:
+                ctypes.windll.kernel32.ReleaseMutex(instance_handle)
+            except Exception:
+                pass
+            try:
+                ctypes.windll.kernel32.CloseHandle(instance_handle)
+            except Exception:
+                pass

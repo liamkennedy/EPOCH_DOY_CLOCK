@@ -1,9 +1,9 @@
 {
   "window": {
-    "x": 1966,
-    "y": -165,
+    "x": 1996,
+    "y": -110,
     "opacity": 0.8,
-    "always_on_top": false,
+    "always_on_top": true,
     "remember_position": true
   },
   "appearance": {

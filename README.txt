@@ -108,3 +108,15 @@ OFF-SCREEN RECOVERY
 At startup, V1.6 checks whether the saved position is visible on the current
 display. If it is outside the available screen area, the widget resets itself
 to position 100,100.
+
+
+V1.7 SINGLE-INSTANCE BEHAVIOR
+-----------------------------
+Only one Epoch DOY Clock instance can run in the current Windows user session.
+
+If you launch the program again while it is already running:
+- the second copy exits immediately
+- it makes a best-effort attempt to bring the existing widget to the front
+
+This protection works whether the program is launched from Python or from a
+PyInstaller portable EXE.
